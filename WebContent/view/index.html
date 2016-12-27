@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Sudoku</title>
+
+<style>
+
+
+tr.spaceUnder > td
+{
+  padding-bottom: 1em;
+  padding-right: 1em;
+}
+
+div.hidden {
+    display: none;
+}
+.blackWriting,.blueWriting,.redWriting,.greenWriting {-webkit-appearance: none; outline:none; border: solid 0 #fff; text-align:center; margin:1; width:20pt;}
+.blackWriting {font-size:17pt;  color:#000000;}
+.blueWriting {font-size:17pt;  color:#6666DD;}
+.redWriting {font-size:17pt;  color:#FF0000;}
+.greenWriting {font-size:17pt;  color:#00FF00;}
+
+
+.blackWriting,.blueWriting,.redWriting,.greenWriting {background-color: transparent;}
+
+
+
+.middleRow0,.middleRow1,.boxRow0,.boxRow1,.lastRow0 {width:24pt; height:25pt; vertical-align:middle; text-align:center; font-size:18pt; font-family:times,serif;}
+
+
+.middleRow0,.middleRow1,.boxRow0,.boxRow1,.lastRow0,.lastRow1 {border-left: #DDDDEE solid 1px; border-top: #DDDDEE solid 1px;}
+
+.middleRow1,.boxRow1,.lastRow1 {border-left: #666699 solid 2px;}
+.boxRow0,.boxRow1{border-top: #666699 solid 2px;}
+.lastRow0,.lastRow1{border-bottom: #666699 solid 2px;}
+.col9{border-right: #666699 solid 2px;}
+
+
+
+</style>
+</head>
+
+<body>
+<span onClick="selectPuzzleType()">
+<input type="radio" name="puzzleType" id="puzzleTypeThis" value="fromThisApp" checked> Generate puzzle</input><br>
+<input type="radio" name="puzzleType" id="puzzleTypeExternal" value="fromOtherApp">Solve Puzzle from external source</input><br>
+</span>
+<div id="board"></div>
+<div id="helpText"><br/> </div>
+<div id="fromThisApp">
+	<table>
+	<tr class="spaceUnder">
+    	<td><span><input type="button" value="Review my solution so far" onclick="reviewMySolution()"></input></span>
+		<td><span><input type="button" value="Get me the complete solution" onclick="getCompleteSolution()"></input></span></td>
+	</tr>
+	<tr class="spaceUnder">
+		<td><span><input type="button" value="Reset to my solution" onclick="reviewMySolution();resetToMySolution()"></input></span></td>
+		<td><span><input type="button" value="Start this puzzle from scratch" onclick="reset()"></input></span>	</td>
+	</tr>
+	<tr class="spaceUnder">
+		<td><span><input type="button" value="Get me a new puzzle" onclick="getNew(false)"></input></span></td>
+	</tr>
+	</table>
+</div>
+<div id="fromOtherApp">
+<input type="button" value="Solve this" onclick="getExternalPuzzleSolution(false)"></input>
+</div>
+</body>
+<script>
+var puzzleBackUp = "";
+var puzzleBackUpClass = [];
+function takePuzzleBackUp(){
+	puzzleBackUp = "";
+	puzzleBackUpClass = [];
+	 for (var row=0;row<9;row++){
+			for (var col=0;col<9;col++){
+				puzzleBackUpClass[row*9+col] = document.getElementById(""+row+col).className ;
+				if (document.getElementById(""+row+col).value != ""){
+					puzzleBackUp +=	document.getElementById(""+row+col).value ;
+				}else{
+					puzzleBackUp += " ";
+				}	
+				
+			}	
+		}
+	
+}
+
+function getPuzzleInStr(){
+	var puzzleStr = "";
+	for (var row=0;row<9;row++){
+		for (var col=0;col<9;col++){
+			if (document.getElementById(""+row+col).value != ""){
+				puzzleStr +=	document.getElementById(""+row+col).value ;
+			}else{
+				puzzleStr += "0";
+			}	
+			
+		}	
+	}
+	return puzzleStr;
+}
+
+function restoreFromBackUp(){
+	for (var row=0;row<9;row++){
+		for (var col=0;col<9;col++){
+			document.getElementById(""+row+col).value = puzzleBackUp.charAt(row*9+col);
+			if (document.getElementById(""+row+col).value == " "){
+				document.getElementById(""+row+col).value = "";
+			}
+			 document.getElementById(""+row+col).className = puzzleBackUpClass[row*9+col];
+
+		}	
+	}
+}
+function getNew(onload){
+	
+	if(!onload){
+		var response = confirm("Are you sure you want to load new puzzle");
+		if(!response){
+			return;
+		}
+	}
+	puzzleBackUp = "";
+	//Get sudoku
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function() {
+	  if (xhttp.readyState == 4 && xhttp.status == 200) {
+	   document.getElementById("board").innerHTML = xhttp.responseText;
+	   
+	   takePuzzleBackUp();
+	  
+	  }
+	};
+	xhttp.open("GET", "/SudokuWeb/GetPuzzle", true);
+	xhttp.send();
+
+}
+
+function getExternalPuzzleSolution( getBlankBoard){
+	
+	
+	//Get sudoku
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function() {
+	  if (xhttp.readyState == 4 && xhttp.status == 200) {
+	   document.getElementById("board").innerHTML = xhttp.responseText;
+	  
+	  
+	  }
+	};
+	xhttp.open("POST", "/SudokuWeb/GetPuzzle", true);
+	xhttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+	var data = "cheater="+document.getElementById("cheater").value+"&";
+	if (getBlankBoard){
+		xhttp.send(data+"problem=blankBoard"); 
+	}else {
+		xhttp.send(data+"problem="+getPuzzleInStr()); 
+	}
+	
+
+}
+getNew(true);
+var puzzleSource = "internal";
+function selectPuzzleType(){
+	var isRadioChanged = false;
+	if ( puzzleSource == "internal" && document.getElementById('puzzleTypeExternal').checked) {
+		puzzleSource = "external";
+		takePuzzleBackUp();
+		isRadioChanged = true;
+		}else 	if (puzzleSource == "external" && document.getElementById('puzzleTypeThis').checked){
+			puzzleSource = "internal";
+			isRadioChanged = true;
+	}
+	if (isRadioChanged){
+		if(puzzleSource == "internal"){
+			document.getElementById("fromThisApp").className = "";
+			document.getElementById("fromOtherApp").className ="hidden";
+			restoreFromBackUp();
+		}else {
+			document.getElementById("fromThisApp").className = "hidden";
+			document.getElementById("fromOtherApp").className ="";
+			
+			document.getElementById("helpText").innerHTML = "<br/>"
+				getExternalPuzzleSolution(true);
+		}
+	}
+	
+	
+}
+function getCompleteSolution(){
+	
+	var solution = document.getElementById("cheater").value;
+	for (var row=0;row<9;row++){
+		for (var col=0;col<9;col++){
+			if (document.getElementById(""+row+col).value == "" || document.getElementById(""+row+col).value !=solution.charAt(row*9+col)){
+				document.getElementById(""+row+col).className  ="greenWriting";
+				document.getElementById(""+row+col).value =solution.charAt(row*9+col);
+			}
+			
+			
+		}	
+	}
+	
+}
+
+function reviewMySolution(){
+	document.getElementById("helpText").innerHTML = "So far so good!"
+	var solution = document.getElementById("cheater").value;
+	for (var row=0;row<9;row++){
+		for (var col=0;col<9;col++){
+			if (document.getElementById(""+row+col).className  == "redWriting"){//Rest old errors
+				document.getElementById(""+row+col).className  = "blueWriting";
+			}
+			if (document.getElementById(""+row+col).value != "" && document.getElementById(""+row+col).value !=solution.charAt(row*9+col)){
+				document.getElementById(""+row+col).className  ="redWriting";
+				document.getElementById("helpText").innerHTML = "There is some problem in the red boxe(s).";
+			}
+			
+		}	
+	}
+		
+}
+
+function reset(){
+	var response = confirm("Are you sure you want to reset this puzzle");
+	if(!response){
+		return;
+	}
+	document.getElementById("helpText").innerHTML = "<br/>"
+	for (var row=0;row<9;row++){
+		for (var col=0;col<9;col++){
+			if (    document.getElementById(""+row+col).className  == "redWriting" || 
+					document.getElementById(""+row+col).className  == "blueWriting" || 
+					document.getElementById(""+row+col).className  == "greenWriting"){//Rest old errors
+				document.getElementById(""+row+col).className  = "blueWriting";
+				document.getElementById(""+row+col).value = "";
+			}
+			
+			
+		}	
+	}
+}
+
+function resetToMySolution(){
+	document.getElementById("helpText").innerHTML = "<br/>"
+	for (var row=0;row<9;row++){
+		for (var col=0;col<9;col++){
+			if (    document.getElementById(""+row+col).className  == "redWriting" || 
+					
+					document.getElementById(""+row+col).className  == "greenWriting"){//Rest old errors
+				document.getElementById(""+row+col).className  = "blueWriting";
+				document.getElementById(""+row+col).value = "";
+			}
+			
+			
+		}	
+	}
+}
+</script>
+</html>
